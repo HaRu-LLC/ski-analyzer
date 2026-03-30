@@ -5,11 +5,24 @@
 """
 
 import logging
-from pathlib import Path
 
 from app.core import settings
 
 logger = logging.getLogger(__name__)
+
+# モデル定義（download_models / check_models で共有）
+MODELS: dict[str, dict[str, str]] = {
+    "hmr2": {
+        "url": "https://github.com/shubham-goel/4D-Humans/releases/download/v1.0/hmr2_model.pt",
+        "filename": "hmr2_model.pt",
+        "description": "HMR2.0 pretrained model",
+    },
+    "smpl": {
+        "url": "https://download.is.tue.mpg.de/download.php?domain=smpl&sfile=SMPL_python_v.1.1.0.zip",
+        "filename": "SMPL_NEUTRAL.pkl",
+        "description": "SMPL body model (要ライセンス同意)",
+    },
+}
 
 
 def download_models():
@@ -19,22 +32,7 @@ def download_models():
 
     print(f"Model directory: {model_dir}")
 
-    # TODO: 実際のモデルダウンロード実装
-    # 以下は使用するHMRモデルに応じて変更
-    models = {
-        "hmr2": {
-            "url": "https://github.com/shubham-goel/4D-Humans/releases/download/v1.0/hmr2_model.pt",
-            "filename": "hmr2_model.pt",
-            "description": "HMR2.0 pretrained model",
-        },
-        "smpl": {
-            "url": "https://download.is.tue.mpg.de/download.php?domain=smpl&sfile=SMPL_python_v.1.1.0.zip",
-            "filename": "SMPL_NEUTRAL.pkl",
-            "description": "SMPL body model (要ライセンス同意)",
-        },
-    }
-
-    for name, info in models.items():
+    for name, info in MODELS.items():
         target = model_dir / info["filename"]
         if target.exists():
             print(f"  [SKIP] {name}: {info['filename']} already exists")
@@ -46,6 +44,25 @@ def download_models():
     print()
     print("Note: SMPLモデルの利用にはライセンスへの同意が必要です。")
     print("      https://smpl.is.tue.mpg.de/ から登録してダウンロードしてください。")
+
+
+def check_models() -> dict:
+    """Check which models are available.
+
+    Returns:
+        Dict with model name as key, and dict with 'exists' (bool),
+        'filename', 'description' as value.
+    """
+    model_dir = settings.model_path
+    result = {}
+    for name, info in MODELS.items():
+        target = model_dir / info["filename"]
+        result[name] = {
+            "exists": target.exists(),
+            "filename": info["filename"],
+            "description": info["description"],
+        }
+    return result
 
 
 if __name__ == "__main__":

@@ -75,25 +75,27 @@ class AngleCalculator:
 
             # 最も高い精度レベルを代表値とする
             conf_values = list(confidence.values())
-            overall_confidence = "high" if "high" in conf_values else (
-                "medium" if "medium" in conf_values else "low"
+            overall_confidence = (
+                "high"
+                if "high" in conf_values
+                else ("medium" if "medium" in conf_values else "low")
             )
 
-            angles.append({
-                "joint_name": joint_name,
-                "joint_name_ja": JOINT_NAME_JA.get(joint_name, joint_name),
-                "flexion": euler["flexion"],
-                "rotation": euler["rotation"],
-                "abduction": euler["abduction"],
-                "confidence": overall_confidence,
-            })
+            angles.append(
+                {
+                    "joint_name": joint_name,
+                    "joint_name_ja": JOINT_NAME_JA.get(joint_name, joint_name),
+                    "flexion": euler["flexion"],
+                    "rotation": euler["rotation"],
+                    "abduction": euler["abduction"],
+                    "confidence": overall_confidence,
+                }
+            )
 
         return angles
 
     @classmethod
-    def calculate_video_angles(
-        cls, pose_results: list[dict], fps: float
-    ) -> list[dict]:
+    def calculate_video_angles(cls, pose_results: list[dict], fps: float) -> list[dict]:
         """動画全体の関節角度時系列データを算出する.
 
         Args:
@@ -107,13 +109,15 @@ class AngleCalculator:
 
         for i, pose in enumerate(pose_results):
             angles = cls.calculate_frame_angles(pose)
-            frame_data_list.append({
-                "frame_index": i,
-                "timestamp_ms": round(i / fps * 1000, 1),
-                "joint_positions_3d": pose.get("joint_positions_3d", {}),
-                "joint_rotations": pose.get("joint_rotations", {}),
-                "joint_angles": angles,
-            })
+            frame_data_list.append(
+                {
+                    "frame_index": i,
+                    "timestamp_ms": round(i / fps * 1000, 1),
+                    "joint_positions_3d": pose.get("joint_positions_3d", {}),
+                    "joint_rotations": pose.get("joint_rotations", {}),
+                    "joint_angles": angles,
+                }
+            )
 
         logger.info("Calculated angles for %d frames", len(frame_data_list))
         return frame_data_list

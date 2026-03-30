@@ -78,6 +78,8 @@ export default function AnalyzePage() {
             currentFrame={currentFrame}
             onFrameChange={setCurrentFrame}
             frameData={currentFrameData}
+            videoWidth={result.video_info.width}
+            videoHeight={result.video_info.height}
           />
         </div>
 

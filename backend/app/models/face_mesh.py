@@ -73,16 +73,17 @@ class FaceMeshEstimator:
         points_2d = np.array(points_2d, dtype=np.float64)
 
         # solvePnP で回転ベクトルを推定
-        camera_matrix = np.array([
-            [w, 0, w / 2],
-            [0, w, h / 2],
-            [0, 0, 1],
-        ], dtype=np.float64)
+        camera_matrix = np.array(
+            [
+                [w, 0, w / 2],
+                [0, w, h / 2],
+                [0, 0, 1],
+            ],
+            dtype=np.float64,
+        )
         dist_coeffs = np.zeros((4, 1), dtype=np.float64)
 
-        success, rotation_vec, _ = cv2.solvePnP(
-            points_3d, points_2d, camera_matrix, dist_coeffs
-        )
+        success, rotation_vec, _ = cv2.solvePnP(points_3d, points_2d, camera_matrix, dist_coeffs)
 
         if not success:
             return None
@@ -93,23 +94,23 @@ class FaceMeshEstimator:
 
         return {
             "pitch": round(float(np.degrees(angles[0])), 1),  # 上下
-            "yaw": round(float(np.degrees(angles[1])), 1),    # 左右
-            "roll": round(float(np.degrees(angles[2])), 1),   # 傾き
+            "yaw": round(float(np.degrees(angles[1])), 1),  # 左右
+            "roll": round(float(np.degrees(angles[2])), 1),  # 傾き
         }
 
     @staticmethod
-    def _rotation_matrix_to_euler(R: np.ndarray) -> np.ndarray:
+    def _rotation_matrix_to_euler(rot: np.ndarray) -> np.ndarray:
         """回転行列からEuler角 (pitch, yaw, roll) を算出する."""
-        sy = np.sqrt(R[0, 0] ** 2 + R[1, 0] ** 2)
+        sy = np.sqrt(rot[0, 0] ** 2 + rot[1, 0] ** 2)
         singular = sy < 1e-6
 
         if not singular:
-            x = np.arctan2(R[2, 1], R[2, 2])
-            y = np.arctan2(-R[2, 0], sy)
-            z = np.arctan2(R[1, 0], R[0, 0])
+            x = np.arctan2(rot[2, 1], rot[2, 2])
+            y = np.arctan2(-rot[2, 0], sy)
+            z = np.arctan2(rot[1, 0], rot[0, 0])
         else:
-            x = np.arctan2(-R[1, 2], R[1, 1])
-            y = np.arctan2(-R[2, 0], sy)
+            x = np.arctan2(-rot[1, 2], rot[1, 1])
+            y = np.arctan2(-rot[2, 0], sy)
             z = 0
 
         return np.array([x, y, z])

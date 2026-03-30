@@ -1,11 +1,8 @@
 """バックエンドのユニットテスト."""
 
-import numpy as np
-import pytest
-
 from app.services.angle_calculator import AngleCalculator
 from app.services.ideal_comparator import IdealComparator
-from app.services.pose_estimator import PoseEstimator, TARGET_JOINTS
+from app.services.pose_estimator import TARGET_JOINTS, PoseEstimator
 
 
 class TestAngleCalculator:
@@ -59,10 +56,7 @@ class TestPoseEstimator:
 
     def test_mock_data_structure(self):
         """モックデータの構造確認."""
-        import os
-        os.environ["USE_MOCK"] = "true"
-
-        estimator = PoseEstimator()
+        estimator = PoseEstimator(use_mock=True)
         result = estimator._generate_mock_data()
         assert "joint_positions_3d" in result
         assert "joint_rotations" in result

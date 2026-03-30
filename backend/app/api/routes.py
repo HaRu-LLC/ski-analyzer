@@ -1,26 +1,91 @@
 """API ルーティング定義."""
 
+import json
 import logging
+import re
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from app.core import settings
-from app.core.exceptions import AnalysisNotFoundError, VideoValidationError
+from app.core.exceptions import VideoValidationError
 from app.schemas.analysis import AnalysisResult, StatusResponse, UploadResponse
 from app.services.video_processor import VideoProcessor
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+_UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+
+def _validate_analysis_id(analysis_id: str) -> Path:
+    """analysis_id を検証し、安全なディレクトリパスを返す.
+
+    UUID形式チェックとパストラバーサル防止を行う。
+
+    Args:
+        analysis_id: 検証対象のID文字列
+
+    Returns:
+        storage_path 配下の解析ディレクトリパス
+
+    Raises:
+        HTTPException: 不正なIDの場合
+    """
+    if not _UUID_RE.match(analysis_id):
+        raise HTTPException(status_code=400, detail="不正な解析IDです")
+
+    resolved = (settings.storage_path / analysis_id).resolve()
+    if not resolved.is_relative_to(settings.storage_path.resolve()):
+        raise HTTPException(status_code=400, detail="不正な解析IDです")
+
+    return resolved
+
+
 # インメモリの解析状況管理（本番ではRedisに移行）
 _analysis_store: dict[str, dict] = {}
 
 
+def run_analysis_background(
+    analysis_id: str,
+    video_path: Path,
+    fps: float,
+    video_info: dict | None = None,
+) -> None:
+    """バックグラウンドで解析パイプラインを実行する."""
+    from app.services.analysis_pipeline import AnalysisPipeline
+
+    def _update_status(stage: str, percent: float) -> None:
+        _analysis_store[analysis_id] = {
+            **_analysis_store.get(analysis_id, {}),
+            "status": stage,
+            "progress": percent,
+        }
+
+    try:
+        pipeline = AnalysisPipeline(use_mock=settings.use_mock)
+        pipeline.run(
+            video_path=video_path,
+            output_dir=video_path.parent,
+            fps=fps,
+            analysis_id=analysis_id,
+            video_info=video_info,
+            progress_callback=_update_status,
+        )
+        _update_status("completed", 100.0)
+    except Exception:
+        logger.exception("Analysis failed: %s", analysis_id)
+        _analysis_store[analysis_id] = {
+            **_analysis_store.get(analysis_id, {}),
+            "status": "failed",
+            "progress": 0,
+        }
+
+
 @router.post("/upload", response_model=UploadResponse)
-async def upload_video(file: UploadFile):
+async def upload_video(file: UploadFile, background_tasks: BackgroundTasks):
     """動画をアップロードして解析を開始する."""
     # 拡張子チェック
     ext = Path(file.filename or "").suffix.lower()
@@ -60,9 +125,14 @@ async def upload_video(file: UploadFile):
         "video_info": video_info,
     }
 
-    # TODO: Celeryタスクに移行
-    # from app.tasks import run_analysis
-    # run_analysis.delay(analysis_id, str(video_path))
+    # BackgroundTasks でパイプラインを非同期実行
+    background_tasks.add_task(
+        run_analysis_background,
+        analysis_id=analysis_id,
+        video_path=video_path,
+        fps=video_info.get("fps", 30.0),
+        video_info=video_info,
+    )
 
     logger.info("Analysis started: %s", analysis_id)
     return UploadResponse(
@@ -75,6 +145,7 @@ async def upload_video(file: UploadFile):
 @router.get("/analysis/{analysis_id}/status", response_model=StatusResponse)
 async def get_analysis_status(analysis_id: str):
     """解析状況を取得する."""
+    _validate_analysis_id(analysis_id)
     if analysis_id not in _analysis_store:
         raise HTTPException(status_code=404, detail="解析結果が見つかりません")
 
@@ -91,11 +162,10 @@ async def get_analysis_status(analysis_id: str):
 @router.get("/analysis/{analysis_id}/result", response_model=AnalysisResult)
 async def get_analysis_result(analysis_id: str):
     """解析結果を取得する."""
-    result_path = settings.storage_path / analysis_id / "result.json"
+    analysis_dir = _validate_analysis_id(analysis_id)
+    result_path = analysis_dir / "result.json"
     if not result_path.exists():
         raise HTTPException(status_code=404, detail="解析結果が見つかりません")
-
-    import json
 
     data = json.loads(result_path.read_text())
     return AnalysisResult(**data)
@@ -104,11 +174,10 @@ async def get_analysis_result(analysis_id: str):
 @router.get("/analysis/{analysis_id}/frames/{frame_index}")
 async def get_frame_data(analysis_id: str, frame_index: int):
     """特定フレームの解析データを取得する."""
-    result_path = settings.storage_path / analysis_id / "result.json"
+    analysis_dir = _validate_analysis_id(analysis_id)
+    result_path = analysis_dir / "result.json"
     if not result_path.exists():
         raise HTTPException(status_code=404, detail="解析結果が見つかりません")
-
-    import json
 
     data = json.loads(result_path.read_text())
     frames = data.get("frames", [])
@@ -121,7 +190,8 @@ async def get_frame_data(analysis_id: str, frame_index: int):
 @router.get("/download/{analysis_id}/video")
 async def download_overlay_video(analysis_id: str):
     """スケルトン重畳動画をダウンロードする."""
-    video_path = settings.storage_path / analysis_id / "overlay.mp4"
+    analysis_dir = _validate_analysis_id(analysis_id)
+    video_path = analysis_dir / "overlay.mp4"
     if not video_path.exists():
         raise HTTPException(status_code=404, detail="動画が見つかりません")
 
@@ -135,7 +205,8 @@ async def download_overlay_video(analysis_id: str):
 @router.get("/download/{analysis_id}/report")
 async def download_report(analysis_id: str):
     """PDFレポートをダウンロードする."""
-    report_path = settings.storage_path / analysis_id / "report.pdf"
+    analysis_dir = _validate_analysis_id(analysis_id)
+    report_path = analysis_dir / "report.pdf"
     if not report_path.exists():
         raise HTTPException(status_code=404, detail="レポートが見つかりません")
 
@@ -149,7 +220,8 @@ async def download_report(analysis_id: str):
 @router.get("/download/{analysis_id}/csv")
 async def download_csv(analysis_id: str):
     """CSV数値データをダウンロードする."""
-    csv_path = settings.storage_path / analysis_id / "angles.csv"
+    analysis_dir = _validate_analysis_id(analysis_id)
+    csv_path = analysis_dir / "angles.csv"
     if not csv_path.exists():
         raise HTTPException(status_code=404, detail="CSVが見つかりません")
 

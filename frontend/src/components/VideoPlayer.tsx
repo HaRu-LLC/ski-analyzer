@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FrameData } from "@/types/analysis";
+import { SkeletonOverlay } from "@/components/SkeletonOverlay";
 
 interface Props {
   analysisId: string;
@@ -10,6 +11,8 @@ interface Props {
   currentFrame: number;
   onFrameChange: (frame: number) => void;
   frameData: FrameData | null;
+  videoWidth?: number;
+  videoHeight?: number;
 }
 
 type PlaybackSpeed = 0.25 | 0.5 | 1 | 2;
@@ -21,12 +24,14 @@ export function VideoPlayer({
   currentFrame,
   onFrameChange,
   frameData,
+  videoWidth = 1920,
+  videoHeight = 1080,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<PlaybackSpeed>(1);
   const [showSkeleton, setShowSkeleton] = useState(true);
+  const [videoAvailable, setVideoAvailable] = useState(true);
 
   // キーボードショートカット
   useEffect(() => {
@@ -51,47 +56,40 @@ export function VideoPlayer({
   }, [currentFrame, totalFrames, onFrameChange]);
 
   // 再生制御
+  const frameRef = useRef(currentFrame);
+  frameRef.current = currentFrame;
+
   useEffect(() => {
     if (!playing) return;
     const interval = setInterval(() => {
-      onFrameChange((prev: number) => {
-        const next = prev + 1;
-        if (next >= totalFrames) {
-          setPlaying(false);
-          return prev;
-        }
-        return next;
-      });
+      const next = frameRef.current + 1;
+      if (next >= totalFrames) {
+        setPlaying(false);
+        return;
+      }
+      onFrameChange(next);
     }, 1000 / fps / speed);
     return () => clearInterval(interval);
   }, [playing, fps, speed, totalFrames, onFrameChange]);
 
-  // スケルトン描画
+  // video 要素の再生/停止を同期
   useEffect(() => {
-    if (!showSkeleton || !frameData || !canvasRef.current) return;
-    const ctx = canvasRef.current.getContext("2d");
-    if (!ctx) return;
+    const video = videoRef.current;
+    if (!video || !videoAvailable) return;
+    if (playing) {
+      video.playbackRate = speed;
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+    }
+  }, [playing, speed, videoAvailable]);
 
-    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-
-    // TODO: Three.js による3Dスケルトン描画を実装
-    // 暫定: 2Dキーポイント描画
-    const positions = frameData.joint_positions_3d;
-    const w = canvasRef.current.width;
-    const h = canvasRef.current.height;
-
-    ctx.strokeStyle = "#00ff88";
-    ctx.lineWidth = 2;
-    ctx.fillStyle = "#00ff88";
-
-    Object.values(positions).forEach(([x, y]) => {
-      const px = (x + 1) * w * 0.5;
-      const py = (1 - y) * h * 0.5;
-      ctx.beginPath();
-      ctx.arc(px, py, 4, 0, Math.PI * 2);
-      ctx.fill();
-    });
-  }, [frameData, showSkeleton]);
+  // frame 変化時に video の currentTime を同期
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !videoAvailable) return;
+    video.currentTime = currentFrame / fps;
+  }, [currentFrame, fps, videoAvailable]);
 
   const speeds: PlaybackSpeed[] = [0.25, 0.5, 1, 2];
 
@@ -99,16 +97,19 @@ export function VideoPlayer({
     <div className="rounded-xl border bg-gray-900 p-3 shadow-sm">
       {/* 動画 + スケルトンオーバーレイ */}
       <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-black">
-        <video
-          ref={videoRef}
-          className="absolute inset-0 h-full w-full object-contain"
-          src={`${process.env.NEXT_PUBLIC_API_URL}/api/download/${analysisId}/video`}
-        />
-        <canvas
-          ref={canvasRef}
-          className="absolute inset-0 h-full w-full"
-          width={1920}
-          height={1080}
+        {videoAvailable && (
+          <video
+            ref={videoRef}
+            className="absolute inset-0 h-full w-full object-contain"
+            src={`${process.env.NEXT_PUBLIC_API_URL}/api/download/${analysisId}/video`}
+            onError={() => setVideoAvailable(false)}
+          />
+        )}
+        <SkeletonOverlay
+          frameData={frameData}
+          width={videoWidth}
+          height={videoHeight}
+          visible={showSkeleton}
         />
       </div>
 

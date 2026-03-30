@@ -31,8 +31,10 @@ class VideoProcessor:
             result = subprocess.run(
                 [
                     "ffprobe",
-                    "-v", "quiet",
-                    "-print_format", "json",
+                    "-v",
+                    "quiet",
+                    "-print_format",
+                    "json",
                     "-show_streams",
                     "-show_format",
                     str(video_path),
@@ -109,8 +111,10 @@ class VideoProcessor:
         subprocess.run(
             [
                 "ffmpeg",
-                "-i", str(video_path),
-                "-q:v", "2",  # 高品質JPEG
+                "-i",
+                str(video_path),
+                "-q:v",
+                "2",  # 高品質JPEG
                 output_pattern,
             ],
             capture_output=True,

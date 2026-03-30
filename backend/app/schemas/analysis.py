@@ -14,7 +14,10 @@ class AnalysisStatus(str, Enum):
     ESTIMATING_POSE = "estimating_pose"
     CALCULATING_ANGLES = "calculating_angles"
     GENERATING_COACHING = "generating_coaching"
+    COMPARING_IDEAL = "comparing_ideal"
+    SAVING_RESULTS = "saving_results"
     RENDERING_OVERLAY = "rendering_overlay"
+    GENERATING_REPORT = "generating_report"
     COMPLETED = "completed"
     FAILED = "failed"
 

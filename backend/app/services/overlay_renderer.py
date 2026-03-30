@@ -7,8 +7,6 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from app.services.pose_estimator import TARGET_JOINTS
-
 logger = logging.getLogger(__name__)
 
 # 描画色 (BGR)
@@ -19,13 +17,24 @@ BONE_THICKNESS = 2
 
 # ボーン接続定義
 BONE_CONNECTIONS = [
-    ("l_hip", "l_knee"), ("r_hip", "r_knee"), ("l_hip", "r_hip"),
-    ("l_shoulder", "l_elbow"), ("l_elbow", "l_wrist"),
-    ("r_shoulder", "r_elbow"), ("r_elbow", "r_wrist"),
-    ("l_shoulder", "r_shoulder"), ("l_shoulder", "l_hip"), ("r_shoulder", "r_hip"),
-    ("neck", "head"), ("l_shoulder", "neck"), ("r_shoulder", "neck"),
-    ("spine1", "spine2"), ("spine2", "spine3"), ("spine3", "neck"),
-    ("l_hip", "spine1"), ("r_hip", "spine1"),
+    ("l_hip", "l_knee"),
+    ("r_hip", "r_knee"),
+    ("l_hip", "r_hip"),
+    ("l_shoulder", "l_elbow"),
+    ("l_elbow", "l_wrist"),
+    ("r_shoulder", "r_elbow"),
+    ("r_elbow", "r_wrist"),
+    ("l_shoulder", "r_shoulder"),
+    ("l_shoulder", "l_hip"),
+    ("r_shoulder", "r_hip"),
+    ("neck", "head"),
+    ("l_shoulder", "neck"),
+    ("r_shoulder", "neck"),
+    ("spine1", "spine2"),
+    ("spine2", "spine3"),
+    ("spine3", "neck"),
+    ("l_hip", "spine1"),
+    ("r_hip", "spine1"),
 ]
 
 
@@ -62,37 +71,46 @@ class OverlayRenderer:
         writer = cv2.VideoWriter(str(tmp_path), fourcc, fps, (width, height))
 
         frame_idx = 0
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
+        try:
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
 
-            if frame_idx < len(frame_results):
-                frame = OverlayRenderer._draw_skeleton(
-                    frame, frame_results[frame_idx], width, height
-                )
+                if frame_idx < len(frame_results):
+                    frame = OverlayRenderer._draw_skeleton(
+                        frame, frame_results[frame_idx], width, height
+                    )
 
-            writer.write(frame)
-            frame_idx += 1
-
-        cap.release()
-        writer.release()
+                writer.write(frame)
+                frame_idx += 1
+        finally:
+            cap.release()
+            writer.release()
 
         # FFmpegで再エンコード（ブラウザ互換H.264）
-        subprocess.run(
-            [
-                "ffmpeg", "-y",
-                "-i", str(tmp_path),
-                "-c:v", "libx264",
-                "-preset", "fast",
-                "-crf", "23",
-                "-pix_fmt", "yuv420p",
-                str(output_path),
-            ],
-            capture_output=True,
-            check=True,
-        )
-        tmp_path.unlink(missing_ok=True)
+        try:
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    str(tmp_path),
+                    "-c:v",
+                    "libx264",
+                    "-preset",
+                    "fast",
+                    "-crf",
+                    "23",
+                    "-pix_fmt",
+                    "yuv420p",
+                    str(output_path),
+                ],
+                capture_output=True,
+                check=True,
+            )
+        finally:
+            tmp_path.unlink(missing_ok=True)
 
         logger.info("Overlay video rendered: %s (%d frames)", output_path, frame_idx)
         return output_path

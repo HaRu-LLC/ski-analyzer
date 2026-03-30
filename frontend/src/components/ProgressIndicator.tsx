@@ -15,7 +15,10 @@ const STATUS_LABELS: Record<AnalysisStatus, string> = {
   estimating_pose: "3Dポーズを推定中...",
   calculating_angles: "関節角度を算出中...",
   generating_coaching: "AIコーチングを生成中...",
+  comparing_ideal: "理想フォームと比較中...",
+  saving_results: "結果を保存中...",
   rendering_overlay: "スケルトン動画を生成中...",
+  generating_report: "レポートを生成中...",
   completed: "完了",
   failed: "エラーが発生しました",
 };

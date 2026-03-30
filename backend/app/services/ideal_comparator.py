@@ -4,8 +4,6 @@ import json
 import logging
 from pathlib import Path
 
-import numpy as np
-
 logger = logging.getLogger(__name__)
 
 # デフォルトの理想フォームデータ（中級者向けパラレルターン）
@@ -78,14 +76,16 @@ class IdealComparator:
             else:
                 rating = "poor"
 
-            comparisons.append({
-                "joint_name": joint_ja,
-                "joint_name_ja": joint_ja,
-                "user_angle": user_angle,
-                "ideal_angle": ideal_angle,
-                "difference": round(diff, 1),
-                "rating": rating,
-            })
+            comparisons.append(
+                {
+                    "joint_name": joint_ja,
+                    "joint_name_ja": joint_ja,
+                    "user_angle": user_angle,
+                    "ideal_angle": ideal_angle,
+                    "difference": round(diff, 1),
+                    "rating": rating,
+                }
+            )
 
         # 差分が大きい順にソート
         comparisons.sort(key=lambda x: x["difference"], reverse=True)

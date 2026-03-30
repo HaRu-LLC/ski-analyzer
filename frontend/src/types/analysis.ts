@@ -6,7 +6,10 @@ export type AnalysisStatus =
   | "estimating_pose"
   | "calculating_angles"
   | "generating_coaching"
+  | "comparing_ideal"
+  | "saving_results"
   | "rendering_overlay"
+  | "generating_report"
   | "completed"
   | "failed";
 

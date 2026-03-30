@@ -12,10 +12,30 @@ logger = logging.getLogger(__name__)
 
 # SMPL関節インデックス定義
 JOINT_NAMES = [
-    "pelvis", "l_hip", "r_hip", "spine1", "l_knee", "r_knee",
-    "spine2", "l_ankle", "r_ankle", "spine3", "l_foot", "r_foot",
-    "neck", "l_collar", "r_collar", "head", "l_shoulder", "r_shoulder",
-    "l_elbow", "r_elbow", "l_wrist", "r_wrist", "l_hand", "r_hand",
+    "pelvis",
+    "l_hip",
+    "r_hip",
+    "spine1",
+    "l_knee",
+    "r_knee",
+    "spine2",
+    "l_ankle",
+    "r_ankle",
+    "spine3",
+    "l_foot",
+    "r_foot",
+    "neck",
+    "l_collar",
+    "r_collar",
+    "head",
+    "l_shoulder",
+    "r_shoulder",
+    "l_elbow",
+    "r_elbow",
+    "l_wrist",
+    "r_wrist",
+    "l_hand",
+    "r_hand",
 ]
 
 NUM_JOINTS = 24
@@ -51,7 +71,6 @@ class SMPLWrapper:
         """モデルファイルをロードする."""
         try:
             import smplx
-            import torch
 
             self._model = smplx.create(
                 str(model_path),
