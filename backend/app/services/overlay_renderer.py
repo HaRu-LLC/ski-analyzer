@@ -67,6 +67,7 @@ class OverlayRenderer:
 
         # 一時ファイルに書き出し（後でFFmpegで最終エンコード）
         tmp_path = output_path.with_suffix(".tmp.mp4")
+        encoded_path = output_path.with_suffix(".encoded.mp4")
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         writer = cv2.VideoWriter(str(tmp_path), fourcc, fps, (width, height))
 
@@ -104,13 +105,19 @@ class OverlayRenderer:
                     "23",
                     "-pix_fmt",
                     "yuv420p",
-                    str(output_path),
+                    str(encoded_path),
                 ],
                 capture_output=True,
                 check=True,
             )
+            encoded_path.replace(output_path)
+        except Exception:
+            output_path.unlink(missing_ok=True)
+            encoded_path.unlink(missing_ok=True)
+            raise
         finally:
             tmp_path.unlink(missing_ok=True)
+            encoded_path.unlink(missing_ok=True)
 
         logger.info("Overlay video rendered: %s (%d frames)", output_path, frame_idx)
         return output_path

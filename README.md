@@ -1,44 +1,60 @@
-# 🎿 Ski Analyzer - スキーシミュレータ動画解析アプリ
+# Ski Analyzer
 
-室内スキーシミュレータの滑走フォームをAI動画解析で可視化し、スキー技術の改善を支援するWebアプリケーションです。
+室内スキーシミュレータの滑走動画を解析し、関節角度、理想フォーム比較、AI コーチングを返すアプリケーションです。
 
-## 特徴
+## 現在の推奨実行モード
 
-- **3D姿勢推定**: SMPLベースのHMRモデルで関節の3D位置・回転を推定
-- **コマ送り再生**: フレーム単位での詳細なフォーム確認
-- **関節角度分析**: 膝・股関節・胸郭・肩・頭・肘・手首の角度を数値化
-- **AIコーチング**: Claude APIによる日本語フォーム改善アドバイス
-- **理想フォーム比較**: 模範フォームとの差分を可視化
+ローカル確認は `USE_MOCK=true` のデモモードを前提にしています。
+このモードでは upload -> status polling -> result 表示 -> CSV/PDF ダウンロードまでを安定して確認できます。
 
-## クイックスタート
+- 3D ポーズ推定は mock データで代替
+- `result.json`, `angles.csv`, `agent_trace.json`, `report.pdf` を生成
+- `overlay.mp4` は入力動画とローカル FFmpeg/OpenCV の状態に依存して生成されます
+
+## Quick Start
+
+### Docker
 
 ```bash
-# リポジトリをクローン
-git clone https://github.com/your-org/ski-analyzer.git
-cd ski-analyzer
-
-# 環境変数を設定
 cp .env.example .env
-# .env を編集して ANTHROPIC_API_KEY を設定
-
-# Docker で起動
-docker-compose up -d
-
-# ブラウザで開く
-open http://localhost:3000
+docker-compose up --build
 ```
 
-## 開発環境セットアップ
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:8000`
 
-### 前提条件
+GPU / real-mode 準備用 override:
 
-- Node.js 20+
-- Python 3.11+
-- Docker & Docker Compose
-- FFmpeg
-- (GPU推論する場合) NVIDIA GPU + CUDA 12+
+```bash
+cp .env.example .env
+sed -i '' 's/USE_MOCK=true/USE_MOCK=false/' .env
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
+```
 
-### フロントエンド
+この override は GPU 対応コンテナと `USE_MOCK=false` を有効化します。
+ただし現時点では pose estimator は必要モデル不足や未統合 runtime を明示的に fail-fast する段階で、実 HMR 推論そのものは未完了です。
+
+### ローカル起動
+
+Backend:
+
+```bash
+cp .env.example .env
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+モデル配置確認:
+
+```bash
+cd backend
+.venv/bin/python -m app.scripts.download_models --check
+```
+
+Frontend:
 
 ```bash
 cd frontend
@@ -46,28 +62,41 @@ npm install
 npm run dev
 ```
 
-### バックエンド
+## 検証コマンド
+
+Backend:
 
 ```bash
 cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python -m app.scripts.download_models  # 初回のみ
-uvicorn app.main:app --reload --port 8000
+.venv/bin/ruff check app/
+.venv/bin/python -m ruff format --check app/
+.venv/bin/pytest -q
 ```
+
+Frontend:
+
+```bash
+cd frontend
+npm run lint
+npx tsc --noEmit
+npm test -- --runInBand
+```
+
+## 実装上の注意
+
+- 現在の API 実装は FastAPI `BackgroundTasks` ベースで、Celery worker は標準構成に含めていません。
+- `download/video` と `download/report` は成果物が生成できた場合のみ有効です。
+- `USE_MOCK=false` では必要モデル不足や未統合 runtime を明示的にエラーにします。暗黙に mock へフォールバックはしません。
+- 実 HMR モデル統合と GPU 常設運用は後続フェーズの扱いです。
 
 ## 撮影ガイド
 
-最適な解析結果を得るために:
+1. 正面から三脚で固定撮影
+2. 全身が画面の 60〜70% に収まる距離
+3. 1080p 以上、60fps 以上
+4. 体のラインが見える服装
+5. 1 分以内の動画
 
-1. **カメラ**: 正面1台、三脚固定
-2. **高さ**: 股関節〜胸の中間
-3. **距離**: 全身が画面の60〜70%を占める
-4. **解像度**: 1080p以上、60fps以上
-5. **服装**: 半袖・短パンなど体のラインが分かる服装
-6. **動画長**: 1分以内
+## License
 
-## ライセンス
-
-MIT License
+MIT

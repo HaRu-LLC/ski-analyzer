@@ -3,6 +3,7 @@
 import csv
 import json
 import logging
+import tempfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,7 @@ from app.core import settings
 from app.services.angle_calculator import AngleCalculator
 from app.services.coaching_generator import CoachingGenerator
 from app.services.ideal_comparator import IdealComparator
+from app.services.overlay_renderer import OverlayRenderer
 from app.services.pose_estimator import PoseEstimator
 from app.services.report_generator import ReportGenerator
 from app.services.video_processor import VideoProcessor
@@ -85,10 +87,10 @@ class AnalysisPipeline:
         # ----------------------------------------------------------
         _notify("estimating_pose", 0.0)
 
-        # モックモードが要求されていてシングルトンと異なる場合は
+        # パイプライン指定とグローバル設定が異なる場合は
         # 専用インスタンスを生成する（グローバル設定を変更しない）
-        if self.use_mock and not settings.use_mock:
-            estimator = PoseEstimator(use_mock=True)
+        if self.use_mock != settings.use_mock:
+            estimator = PoseEstimator(use_mock=self.use_mock)
         else:
             estimator = PoseEstimator.get_instance()
         pose_results = estimator.estimate_video(frame_paths)
@@ -148,22 +150,15 @@ class AnalysisPipeline:
             "angle_summary": angle_summary,
             "coaching": coaching,
             "ideal_comparison": ideal_comparison,
+            "artifacts": {
+                "video": False,
+                "report": False,
+                "csv": False,
+            },
         }
 
         # ----------------------------------------------------------
-        # 7. result.json の保存
-        # ----------------------------------------------------------
-        _notify("saving_results", 0.0)
-
-        result_json_path = output_dir / "result.json"
-        result_json_path.write_text(
-            json.dumps(result, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        logger.info("Saved result.json to %s", result_json_path)
-
-        # ----------------------------------------------------------
-        # 8. agent_trace.json の保存
+        # 7. agent_trace.json の保存
         # ----------------------------------------------------------
         trace_path = output_dir / "agent_trace.json"
         trace_path.write_text(
@@ -183,35 +178,74 @@ class AnalysisPipeline:
         logger.info("Saved agent_trace.json to %s", trace_path)
 
         # ----------------------------------------------------------
-        # 9. angles.csv の保存
+        # 8. angles.csv の保存
         # ----------------------------------------------------------
         csv_path = output_dir / "angles.csv"
         self._save_angles_csv(frame_data_list, csv_path)
+        result["artifacts"]["csv"] = csv_path.exists()
         logger.info("Saved angles.csv to %s", csv_path)
 
+        # ----------------------------------------------------------
+        # 9. core result.json の保存
+        # ----------------------------------------------------------
+        _notify("saving_results", 0.0)
+        result_json_path = output_dir / "result.json"
+        self._write_result_json(result, result_json_path)
+        logger.info("Saved result.json to %s", result_json_path)
         _notify("saving_results", 100.0)
 
         # ----------------------------------------------------------
-        # 10. オーバーレイ動画レンダリング（モック時はスキップ）
+        # 10. オーバーレイ動画レンダリング
         # ----------------------------------------------------------
-        if not self.use_mock:
-            _notify("rendering_overlay", 0.0)
-            # TODO: OverlayRenderer の実装後に有効化
-            logger.info("Overlay rendering skipped (not yet implemented)")
-            _notify("rendering_overlay", 100.0)
+        _notify("rendering_overlay", 0.0)
+        overlay_path = output_dir / "overlay.mp4"
+        if self.use_mock:
+            logger.info("Overlay rendering skipped in mock mode")
+        elif video_path.exists():
+            try:
+                OverlayRenderer.render(video_path, pose_results, overlay_path)
+                result["artifacts"]["video"] = overlay_path.exists()
+                self._write_result_json(result, result_json_path)
+            except Exception:
+                logger.warning("Overlay rendering failed for %s", video_path, exc_info=True)
+        else:
+            logger.info("Overlay rendering skipped because input video does not exist")
+        _notify("rendering_overlay", 100.0)
 
         # ----------------------------------------------------------
-        # 11. PDFレポート生成（モック時はスキップ）
+        # 11. PDFレポート生成
         # ----------------------------------------------------------
-        if not self.use_mock:
-            _notify("generating_report", 0.0)
-            report_path = output_dir / "report.pdf"
+        _notify("generating_report", 0.0)
+        report_path = output_dir / "report.pdf"
+        try:
             ReportGenerator.generate(result, report_path)
-            logger.info("Report generated at %s", report_path)
-            _notify("generating_report", 100.0)
+            result["artifacts"]["report"] = report_path.exists()
+            self._write_result_json(result, result_json_path)
+        except Exception:
+            logger.warning("Report generation failed for %s", output_dir, exc_info=True)
+        _notify("generating_report", 100.0)
 
         _notify("completed", 100.0)
         return result
+
+    @staticmethod
+    def _write_result_json(result: dict[str, Any], result_json_path: Path) -> None:
+        """現在の解析結果を result.json に保存する."""
+        result_json_path.parent.mkdir(parents=True, exist_ok=True)
+        serialized = json.dumps(result, ensure_ascii=False, indent=2)
+
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            dir=result_json_path.parent,
+            prefix=f"{result_json_path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as tmp_file:
+            tmp_file.write(serialized)
+            temp_path = Path(tmp_file.name)
+
+        temp_path.replace(result_json_path)
 
     @staticmethod
     def _save_angles_csv(frame_data_list: list[dict], csv_path: Path) -> None:

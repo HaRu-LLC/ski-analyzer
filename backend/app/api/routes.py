@@ -48,6 +48,21 @@ def _validate_analysis_id(analysis_id: str) -> Path:
 _analysis_store: dict[str, dict] = {}
 
 
+def _artifact_status_from_files(analysis_dir: Path) -> dict[str, bool]:
+    """解析ディレクトリ上の成果物存在有無を返す."""
+    return {
+        "video": (analysis_dir / "overlay.mp4").exists(),
+        "report": (analysis_dir / "report.pdf").exists(),
+        "csv": (analysis_dir / "angles.csv").exists(),
+    }
+
+
+def _hydrate_result_artifacts(data: dict, analysis_dir: Path) -> dict:
+    """保存済み結果に artifact 情報を補完する."""
+    data["artifacts"] = _artifact_status_from_files(analysis_dir)
+    return data
+
+
 def run_analysis_background(
     analysis_id: str,
     video_path: Path,
@@ -81,6 +96,7 @@ def run_analysis_background(
             **_analysis_store.get(analysis_id, {}),
             "status": "failed",
             "progress": 0,
+            "error": "解析中にエラーが発生しました",
         }
 
 
@@ -145,7 +161,7 @@ async def upload_video(file: UploadFile, background_tasks: BackgroundTasks):
 @router.get("/analysis/{analysis_id}/status", response_model=StatusResponse)
 async def get_analysis_status(analysis_id: str):
     """解析状況を取得する."""
-    _validate_analysis_id(analysis_id)
+    analysis_dir = _validate_analysis_id(analysis_id)
     if analysis_id not in _analysis_store:
         raise HTTPException(status_code=404, detail="解析結果が見つかりません")
 
@@ -156,6 +172,7 @@ async def get_analysis_status(analysis_id: str):
         progress=store.get("progress", 0),
         estimated_remaining_seconds=store.get("eta"),
         error_message=store.get("error"),
+        artifacts=_artifact_status_from_files(analysis_dir),
     )
 
 
@@ -168,6 +185,7 @@ async def get_analysis_result(analysis_id: str):
         raise HTTPException(status_code=404, detail="解析結果が見つかりません")
 
     data = json.loads(result_path.read_text())
+    data = _hydrate_result_artifacts(data, analysis_dir)
     return AnalysisResult(**data)
 
 

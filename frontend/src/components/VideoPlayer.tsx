@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { FrameData } from "@/types/analysis";
 import { SkeletonOverlay } from "@/components/SkeletonOverlay";
+import { getDownloadUrl } from "@/utils/api";
 
 interface Props {
   analysisId: string;
@@ -13,6 +14,7 @@ interface Props {
   frameData: FrameData | null;
   videoWidth?: number;
   videoHeight?: number;
+  hasOverlayVideo?: boolean;
 }
 
 type PlaybackSpeed = 0.25 | 0.5 | 1 | 2;
@@ -26,12 +28,17 @@ export function VideoPlayer({
   frameData,
   videoWidth = 1920,
   videoHeight = 1080,
+  hasOverlayVideo = true,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<PlaybackSpeed>(1);
   const [showSkeleton, setShowSkeleton] = useState(true);
-  const [videoAvailable, setVideoAvailable] = useState(true);
+  const [videoAvailable, setVideoAvailable] = useState(hasOverlayVideo);
+
+  useEffect(() => {
+    setVideoAvailable(hasOverlayVideo);
+  }, [hasOverlayVideo]);
 
   // キーボードショートカット
   useEffect(() => {
@@ -101,9 +108,14 @@ export function VideoPlayer({
           <video
             ref={videoRef}
             className="absolute inset-0 h-full w-full object-contain"
-            src={`${process.env.NEXT_PUBLIC_API_URL}/api/download/${analysisId}/video`}
+            src={getDownloadUrl(analysisId, "video")}
             onError={() => setVideoAvailable(false)}
           />
+        )}
+        {!videoAvailable && (
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-300">
+            重畳動画はまだ利用できません
+          </div>
         )}
         <SkeletonOverlay
           frameData={frameData}

@@ -4,7 +4,9 @@
     python -m app.scripts.download_models
 """
 
+import argparse
 import logging
+import sys
 
 from app.core import settings
 
@@ -65,5 +67,39 @@ def check_models() -> dict:
     return result
 
 
-if __name__ == "__main__":
+def validate_models() -> tuple[bool, list[str]]:
+    """必要モデルが揃っているか検証する."""
+    status = check_models()
+    missing = [name for name, info in status.items() if not info["exists"]]
+    return len(missing) == 0, missing
+
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI エントリポイント."""
+    parser = argparse.ArgumentParser(description="モデル配置確認とダウンロード案内")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="モデル配置状態だけを検証し、不足時は非ゼロ終了する",
+    )
+    args = parser.parse_args(argv)
+
+    if args.check:
+        ok, missing = validate_models()
+        status = check_models()
+        print(f"Model directory: {settings.model_path}")
+        for name, info in status.items():
+            state = "OK" if info["exists"] else "MISSING"
+            print(f"  [{state}] {name}: {info['filename']}")
+        if not ok:
+            print()
+            print("Missing models: " + ", ".join(missing))
+            return 1
+        return 0
+
     download_models()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

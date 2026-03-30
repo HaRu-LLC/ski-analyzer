@@ -42,7 +42,12 @@ http://localhost:8000/api
   "status": "estimating_pose",
   "progress": 45.0,
   "estimated_remaining_seconds": 120,
-  "error_message": null
+  "error_message": null,
+  "artifacts": {
+    "video": false,
+    "report": false,
+    "csv": true
+  }
 }
 ```
 
@@ -78,11 +83,17 @@ http://localhost:8000/api
   },
   "ideal_comparison": [
     { "joint_name": "l_knee", "joint_name_ja": "左膝", "user_angle": -48.5, "ideal_angle": -55.0, "difference": 6.5, "rating": "good" }
-  ]
+  ],
+  "artifacts": {
+    "video": true,
+    "report": true,
+    "csv": true
+  }
 }
 ```
 
 `agent_trace.json` は内部保存用 artifact であり、このレスポンスには含めない。
+`artifacts` はダウンロード可能な成果物の有無を表す。
 
 ---
 
@@ -95,6 +106,7 @@ http://localhost:8000/api
 ### GET /download/{id}/video
 
 スケルトン重畳済みMP4動画をダウンロード。
+生成されていない場合は `404`。
 
 **Response**: `application/octet-stream` (MP4)
 
@@ -103,6 +115,7 @@ http://localhost:8000/api
 ### GET /download/{id}/report
 
 PDFレポートをダウンロード。
+生成されていない場合は `404`。
 
 **Response**: `application/pdf`
 
@@ -114,4 +127,4 @@ PDFレポートをダウンロード。
 
 **Response**: `text/csv`
 
-**CSV列**: `frame_index, timestamp_ms, joint_name, flexion, rotation, abduction, confidence`
+**CSV列**: `frame_index, timestamp_ms, joint_name, joint_name_ja, flexion, rotation, abduction, confidence`

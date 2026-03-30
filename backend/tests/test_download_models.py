@@ -74,3 +74,31 @@ class TestDownloadModels:
         assert status["hmr2"]["exists"] is True
         assert "smpl" in status
         assert status["smpl"]["exists"] is False
+
+    def test_validate_models_reports_missing(self, tmp_path):
+        """validate_models が不足モデル名を返すこと."""
+        model_dir = tmp_path / "models"
+        model_dir.mkdir()
+        (model_dir / "hmr2_model.pt").write_bytes(b"fake")
+
+        with patch("app.core.settings.model_path", model_dir):
+            from app.scripts.download_models import validate_models
+
+            ok, missing = validate_models()
+
+        assert ok is False
+        assert missing == ["smpl"]
+
+    def test_main_check_returns_nonzero_when_models_missing(self, tmp_path, capsys):
+        """--check は不足時に非ゼロ終了すること."""
+        model_dir = tmp_path / "models"
+        model_dir.mkdir()
+
+        with patch("app.core.settings.model_path", model_dir):
+            from app.scripts.download_models import main
+
+            exit_code = main(["--check"])
+
+        output = capsys.readouterr().out
+        assert exit_code == 1
+        assert "MISSING" in output

@@ -1,5 +1,10 @@
 """バックエンドのユニットテスト."""
 
+from unittest.mock import patch
+
+import pytest
+
+from app.core.exceptions import ModelNotLoadedError
 from app.services.angle_calculator import AngleCalculator
 from app.services.ideal_comparator import IdealComparator
 from app.services.pose_estimator import TARGET_JOINTS, PoseEstimator
@@ -54,6 +59,11 @@ class TestAngleCalculator:
 class TestPoseEstimator:
     """PoseEstimator のテスト（モックモード）."""
 
+    def test_default_settings_use_mock(self):
+        """明示指定がなければローカル既定は mock mode であること."""
+        estimator = PoseEstimator()
+        assert estimator._use_mock is True
+
     def test_mock_data_structure(self):
         """モックデータの構造確認."""
         estimator = PoseEstimator(use_mock=True)
@@ -63,6 +73,16 @@ class TestPoseEstimator:
         assert "smpl_params" in result
         assert len(result["smpl_params"]["betas"]) == 10
         assert len(result["smpl_params"]["body_pose"]) == 69
+
+    def test_real_mode_requires_model_files(self, tmp_path):
+        """real mode では必要モデル不足を明示的に拒否すること."""
+        model_dir = tmp_path / "models"
+        model_dir.mkdir()
+
+        with patch("app.core.settings.model_path", model_dir):
+            with patch("torch.cuda.is_available", return_value=False):
+                with pytest.raises(ModelNotLoadedError):
+                    PoseEstimator(use_mock=False)
 
 
 class TestIdealComparator:

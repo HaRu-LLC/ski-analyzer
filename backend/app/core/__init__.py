@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     openai_reasoning_effort: str = "low"
 
     # 開発
-    use_mock: bool = False
+    use_mock: bool = True
     log_level: str = "INFO"
 
     model_config = {"env_file": ".env", "extra": "ignore"}

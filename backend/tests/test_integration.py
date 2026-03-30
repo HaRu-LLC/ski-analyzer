@@ -86,6 +86,7 @@ class TestBackgroundTasksPipeline:
         assert "frames" in data
         assert "coaching" in data
         assert "ideal_comparison" in data
+        assert data["artifacts"]["csv"] is True
         assert data["total_frames"] > 0
 
         # クリーンアップ

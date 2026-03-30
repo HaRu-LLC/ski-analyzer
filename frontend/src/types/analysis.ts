@@ -55,6 +55,13 @@ export interface IdealComparison {
   rating: "good" | "needs_improvement" | "poor";
 }
 
+/** 生成済み成果物 */
+export interface AnalysisArtifacts {
+  video: boolean;
+  report: boolean;
+  csv: boolean;
+}
+
 /** 解析結果全体 */
 export interface AnalysisResult {
   analysis_id: string;
@@ -69,6 +76,7 @@ export interface AnalysisResult {
   frames: FrameData[];
   coaching: CoachingAdvice;
   ideal_comparison: IdealComparison[];
+  artifacts: AnalysisArtifacts;
 }
 
 /** 解析状況レスポンス */
@@ -78,6 +86,7 @@ export interface StatusResponse {
   progress: number;
   estimated_remaining_seconds: number | null;
   error_message: string | null;
+  artifacts: AnalysisArtifacts;
 }
 
 /** アップロードレスポンス */

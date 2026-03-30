@@ -30,6 +30,14 @@ class UploadResponse(BaseModel):
     message: str
 
 
+class AnalysisArtifacts(BaseModel):
+    """生成済み成果物の可用性."""
+
+    video: bool = False
+    report: bool = False
+    csv: bool = False
+
+
 class StatusResponse(BaseModel):
     """解析状況レスポンス."""
 
@@ -38,6 +46,7 @@ class StatusResponse(BaseModel):
     progress: float = Field(ge=0, le=100, description="進捗率 (%)")
     estimated_remaining_seconds: int | None = None
     error_message: str | None = None
+    artifacts: AnalysisArtifacts = Field(default_factory=AnalysisArtifacts)
 
 
 class JointAngle(BaseModel):
@@ -89,3 +98,4 @@ class AnalysisResult(BaseModel):
     frames: list[FrameData]
     coaching: CoachingAdvice
     ideal_comparison: list[IdealComparison]
+    artifacts: AnalysisArtifacts = Field(default_factory=AnalysisArtifacts)

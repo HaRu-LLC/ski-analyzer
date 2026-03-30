@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { AnglePanel } from "@/components/AnglePanel";
@@ -8,47 +8,17 @@ import { AngleGraph } from "@/components/AngleGraph";
 import { CoachingPanel } from "@/components/CoachingPanel";
 import { DownloadBar } from "@/components/DownloadBar";
 import { ProgressIndicator } from "@/components/ProgressIndicator";
-import { getAnalysisStatus, getAnalysisResult } from "@/utils/api";
-import type { AnalysisResult, AnalysisStatus } from "@/types/analysis";
+import { useAnalysis } from "@/hooks/useAnalysis";
 
 export default function AnalyzePage() {
   const params = useParams();
   const analysisId = params.id as string;
 
-  const [status, setStatus] = useState<AnalysisStatus>("validating");
-  const [progress, setProgress] = useState(0);
-  const [eta, setEta] = useState<number | null>(null);
-  const [result, setResult] = useState<AnalysisResult | null>(null);
   const [currentFrame, setCurrentFrame] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-
-  // 解析状況ポーリング
-  useEffect(() => {
-    if (status === "completed" || status === "failed") return;
-
-    const interval = setInterval(async () => {
-      try {
-        const res = await getAnalysisStatus(analysisId);
-        setStatus(res.status);
-        setProgress(res.progress);
-        setEta(res.estimated_remaining_seconds);
-
-        if (res.status === "completed") {
-          const analysisResult = await getAnalysisResult(analysisId);
-          setResult(analysisResult);
-        } else if (res.status === "failed") {
-          setError(res.error_message || "解析に失敗しました");
-        }
-      } catch {
-        // ポーリング失敗は無視（次回リトライ）
-      }
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [analysisId, status]);
+  const { status, progress, eta, result, error } = useAnalysis({ analysisId });
 
   // 解析中画面 (S-002)
-  if (status !== "completed") {
+  if (!result) {
     return (
       <div className="flex flex-col items-center gap-6 py-20">
         <ProgressIndicator status={status} progress={progress} eta={eta} />
@@ -80,6 +50,7 @@ export default function AnalyzePage() {
             frameData={currentFrameData}
             videoWidth={result.video_info.width}
             videoHeight={result.video_info.height}
+            hasOverlayVideo={result.artifacts.video}
           />
         </div>
 
@@ -104,7 +75,7 @@ export default function AnalyzePage() {
       />
 
       {/* ダウンロードバー */}
-      <DownloadBar analysisId={analysisId} />
+      <DownloadBar analysisId={analysisId} artifacts={result.artifacts} />
     </div>
   );
 }

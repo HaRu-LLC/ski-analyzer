@@ -13,6 +13,11 @@ from app.core.exceptions import ModelNotLoadedError, PoseEstimationError
 
 logger = logging.getLogger(__name__)
 
+REQUIRED_MODEL_FILES = {
+    "hmr2": "hmr2_model.pt",
+    "smpl": "SMPL_NEUTRAL.pkl",
+}
+
 # SMPL 24関節の定義
 SMPL_JOINT_NAMES = [
     "pelvis",
@@ -112,15 +117,27 @@ class PoseEstimator:
 
             self._device = "cuda" if torch.cuda.is_available() else "cpu"
             logger.info("Using device: %s", self._device)
+            missing_files = [
+                str(settings.model_path / filename)
+                for filename in REQUIRED_MODEL_FILES.values()
+                if not (settings.model_path / filename).exists()
+            ]
+            if missing_files:
+                raise ModelNotLoadedError(
+                    "必要なモデルファイルが不足しています: " + ", ".join(missing_files)
+                )
 
             # TODO: 実際のHMRモデルロード
             # from hmr2 import HMR2
             # self._model = HMR2.from_pretrained(settings.model_path / "hmr2")
             # self._model.to(self._device)
             # self._model.eval()
-
-            logger.info("HMR model loaded successfully")
+            raise ModelNotLoadedError(
+                "USE_MOCK=false が指定されていますが、実 HMR 推論ランタイムはまだ未統合です。"
+            )
         except Exception as e:
+            if isinstance(e, ModelNotLoadedError):
+                raise
             raise ModelNotLoadedError(f"モデルのロードに失敗: {e}") from e
 
     @classmethod
@@ -149,12 +166,10 @@ class PoseEstimator:
             return self._generate_mock_data()
 
         try:
-            # TODO: 実際のHMR推論実装
-            # image = load_image(image_path)
-            # output = self._model(image)
-            # return self._parse_output(output)
-            return self._generate_mock_data()
+            raise PoseEstimationError("実 HMR 推論は未実装です。USE_MOCK=true で実行してください。")
         except Exception as e:
+            if isinstance(e, PoseEstimationError):
+                raise
             raise PoseEstimationError(f"ポーズ推定に失敗: {e}") from e
 
     def estimate_video(

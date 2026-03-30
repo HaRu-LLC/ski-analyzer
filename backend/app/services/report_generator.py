@@ -3,6 +3,7 @@
 import io
 import logging
 import math
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -599,27 +600,42 @@ class ReportGenerator:
 
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                suffix=".pdf",
+                dir=output_path.parent,
+                prefix=f"{output_path.stem}.",
+                delete=False,
+            ) as tmp_file:
+                temp_path = Path(tmp_file.name)
 
-        doc = SimpleDocTemplate(
-            str(output_path),
-            pagesize=A4,
-            topMargin=20 * mm,
-            bottomMargin=20 * mm,
-            leftMargin=20 * mm,
-            rightMargin=20 * mm,
-        )
+            doc = SimpleDocTemplate(
+                str(temp_path),
+                pagesize=A4,
+                topMargin=20 * mm,
+                bottomMargin=20 * mm,
+                leftMargin=20 * mm,
+                rightMargin=20 * mm,
+            )
 
-        styles = _build_styles()
+            styles = _build_styles()
 
-        elements: list = []
-        elements.extend(_build_cover_page(analysis_result, styles))
-        elements.extend(_build_score_page(analysis_result, styles))
-        elements.extend(_build_angle_summary_page(analysis_result, styles))
-        elements.extend(_build_graph_page(analysis_result, styles))
-        elements.extend(_build_comparison_page(analysis_result, styles))
-        elements.extend(_build_coaching_page(analysis_result, styles))
+            elements: list = []
+            elements.extend(_build_cover_page(analysis_result, styles))
+            elements.extend(_build_score_page(analysis_result, styles))
+            elements.extend(_build_angle_summary_page(analysis_result, styles))
+            elements.extend(_build_graph_page(analysis_result, styles))
+            elements.extend(_build_comparison_page(analysis_result, styles))
+            elements.extend(_build_coaching_page(analysis_result, styles))
 
-        doc.build(elements)
+            doc.build(elements)
+            temp_path.replace(output_path)
+        except Exception:
+            if temp_path is not None:
+                temp_path.unlink(missing_ok=True)
+            raise
+
         logger.info(
             "PDF report generated: %s (%d bytes)",
             output_path,
