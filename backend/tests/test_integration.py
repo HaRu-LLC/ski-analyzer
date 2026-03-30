@@ -125,6 +125,7 @@ class TestBackgroundTasksPipeline:
             "extracting_frames",
             "estimating_pose",
             "calculating_angles",
+            "comparing_ideal",
             "generating_coaching",
         ]
         for stage in expected_stages:

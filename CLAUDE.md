@@ -10,7 +10,7 @@
 [ブラウザ] ──HTTP/WS──▶ [FastAPI Backend] ──GPU推論──▶ [HMR Engine]
                               │                            │
                               ├── FFmpeg (フレーム抽出)      ├── SMPL 3Dポーズ推定
-                              ├── Claude API (コーチング)    └── MediaPipe (顔補完)
+                              ├── LLM Provider (コーチング)  └── MediaPipe (顔補完)
                               └── S3 (動画/結果保存)
 ```
 
@@ -26,7 +26,7 @@
 - **姿勢推定**: SMPLベースHMR (PyTorch)
 - **顔補完**: MediaPipe Face Mesh
 - **動画処理**: FFmpeg (subprocess)
-- **AIコーチング**: Anthropic Claude API
+- **AIコーチング**: Anthropic Claude API または OpenAI structured agent
 - **非同期タスク**: Celery + Redis
 
 ## ディレクトリ構成
@@ -100,7 +100,11 @@ cd backend && python -m app.scripts.download_models
 
 ```
 # バックエンド
+LLM_PROVIDER=anthropic     # anthropic / openai
 ANTHROPIC_API_KEY=         # Claude API キー
+OPENAI_API_KEY=            # OpenAI API キー
+OPENAI_AGENT_MODEL=gpt-5.2
+OPENAI_REASONING_EFFORT=low
 STORAGE_PATH=/data/uploads # 動画保存パス
 MODEL_PATH=/data/models    # HMRモデルパス
 REDIS_URL=redis://redis:6379/0
@@ -131,8 +135,10 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 5. 関節角度算出 → axis-angle → Euler角変換
    - 対象: 膝, 股関節, 胸郭(Spine1-3), 肩, 頭, 肘, 手首
 6. 理想フォーム比較 → 関節角度の差分計算
-7. Claude API → コーチングテキスト生成
-8. 結果保存 → JSON + スケルトン重畳動画レンダリング
+7. LLM Provider → コーチング生成
+   - anthropic: 既存互換の単発生成
+   - openai: structured output + review + internal trace
+8. 結果保存 → JSON + agent_trace.json + スケルトン重畳動画レンダリング
 ```
 
 ## SMPL関節マッピング

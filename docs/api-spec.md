@@ -46,7 +46,7 @@ http://localhost:8000/api
 }
 ```
 
-**status値**: `uploading` → `validating` → `extracting_frames` → `estimating_pose` → `calculating_angles` → `generating_coaching` → `rendering_overlay` → `completed` / `failed`
+**status値**: `uploading` → `validating` → `extracting_frames` → `estimating_pose` → `calculating_angles` → `comparing_ideal` → `generating_coaching` → `saving_results` → `rendering_overlay` → `generating_report` → `completed` / `failed`
 
 ---
 
@@ -81,6 +81,8 @@ http://localhost:8000/api
   ]
 }
 ```
+
+`agent_trace.json` は内部保存用 artifact であり、このレスポンスには含めない。
 
 ---
 

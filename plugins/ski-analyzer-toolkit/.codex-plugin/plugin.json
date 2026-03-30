@@ -1,0 +1,6 @@
+{
+  "name": "ski-analyzer-toolkit",
+  "version": "0.1.0",
+  "description": "Codex skills and workflow guidance for the ski-analyzer repository.",
+  "skills": "./skills/"
+}

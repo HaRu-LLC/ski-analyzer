@@ -20,6 +20,7 @@ opencv-python-headless>=4.9.0
 
 # AI Coaching
 anthropic>=0.40.0
+openai>=1.99.0
 
 # Report generation
 reportlab>=4.1.0

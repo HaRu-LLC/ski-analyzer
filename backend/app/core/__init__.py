@@ -29,7 +29,11 @@ class Settings(BaseSettings):
     redis_url: str = "redis://redis:6379/0"
 
     # AI
+    llm_provider: str = "anthropic"
     anthropic_api_key: str = ""
+    openai_api_key: str = ""
+    openai_agent_model: str = "gpt-5.2"
+    openai_reasoning_effort: str = "low"
 
     # 開発
     use_mock: bool = False

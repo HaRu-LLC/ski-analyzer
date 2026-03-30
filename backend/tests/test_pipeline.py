@@ -235,3 +235,18 @@ class TestAnalysisPipeline:
         assert csv_path.exists()
         content = csv_path.read_text()
         assert "frame_index" in content  # ヘッダ行
+
+    def test_pipeline_generates_agent_trace(self, tmp_path):
+        """パイプライン完走後に agent_trace.json が生成されること."""
+        from app.services.analysis_pipeline import AnalysisPipeline
+
+        video_path = tmp_path / "test.mp4"
+        video_path.write_bytes(b"\x00" * 100)
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+
+        pipeline = AnalysisPipeline(use_mock=True)
+        pipeline.run(video_path=video_path, output_dir=output_dir, fps=30.0)
+
+        trace_path = output_dir / "agent_trace.json"
+        assert trace_path.exists()

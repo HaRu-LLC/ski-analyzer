@@ -107,27 +107,30 @@ class AnalysisPipeline:
         _notify("calculating_angles", 100.0)
 
         # ----------------------------------------------------------
-        # 4. 角度要約 + コーチング生成
-        # ----------------------------------------------------------
-        _notify("generating_coaching", 0.0)
-
-        angle_summary = CoachingGenerator.summarize_angles(frame_data_list)
-        coaching_gen = CoachingGenerator()
-        coaching = coaching_gen.generate(angle_summary)
-
-        logger.info("Coaching generation completed")
-        _notify("generating_coaching", 100.0)
-
-        # ----------------------------------------------------------
-        # 5. 理想フォーム比較
+        # 4. 理想フォーム比較
         # ----------------------------------------------------------
         _notify("comparing_ideal", 0.0)
 
+        angle_summary = CoachingGenerator.summarize_angles(frame_data_list)
         comparator = IdealComparator()
         ideal_comparison = comparator.compare(angle_summary)
 
         logger.info("Ideal comparison completed")
         _notify("comparing_ideal", 100.0)
+
+        # ----------------------------------------------------------
+        # 5. コーチング生成
+        # ----------------------------------------------------------
+        _notify("generating_coaching", 0.0)
+
+        coaching_gen = CoachingGenerator()
+        coaching, coaching_trace = coaching_gen.generate_with_metadata(
+            angle_summary,
+            ideal_comparison=ideal_comparison,
+        )
+
+        logger.info("Coaching generation completed")
+        _notify("generating_coaching", 100.0)
 
         # ----------------------------------------------------------
         # 6. 結果dictの組み立て
@@ -160,7 +163,27 @@ class AnalysisPipeline:
         logger.info("Saved result.json to %s", result_json_path)
 
         # ----------------------------------------------------------
-        # 8. angles.csv の保存
+        # 8. agent_trace.json の保存
+        # ----------------------------------------------------------
+        trace_path = output_dir / "agent_trace.json"
+        trace_path.write_text(
+            json.dumps(
+                {
+                    "provider": coaching_trace.get("provider"),
+                    "model": coaching_trace.get("model"),
+                    "review_decision": coaching_trace.get("review_decision"),
+                    "review_issues": coaching_trace.get("review_issues", []),
+                    "fallback_reason": coaching_trace.get("fallback_reason"),
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        logger.info("Saved agent_trace.json to %s", trace_path)
+
+        # ----------------------------------------------------------
+        # 9. angles.csv の保存
         # ----------------------------------------------------------
         csv_path = output_dir / "angles.csv"
         self._save_angles_csv(frame_data_list, csv_path)
@@ -169,7 +192,7 @@ class AnalysisPipeline:
         _notify("saving_results", 100.0)
 
         # ----------------------------------------------------------
-        # 9. オーバーレイ動画レンダリング（モック時はスキップ）
+        # 10. オーバーレイ動画レンダリング（モック時はスキップ）
         # ----------------------------------------------------------
         if not self.use_mock:
             _notify("rendering_overlay", 0.0)
@@ -178,7 +201,7 @@ class AnalysisPipeline:
             _notify("rendering_overlay", 100.0)
 
         # ----------------------------------------------------------
-        # 10. PDFレポート生成（モック時はスキップ）
+        # 11. PDFレポート生成（モック時はスキップ）
         # ----------------------------------------------------------
         if not self.use_mock:
             _notify("generating_report", 0.0)

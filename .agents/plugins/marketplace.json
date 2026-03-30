@@ -1,0 +1,23 @@
+{
+  "name": "ski-analyzer-local",
+  "interface": {
+    "displayName": "Ski Analyzer Local"
+  },
+  "plugins": [
+    {
+      "name": "ski-analyzer-toolkit",
+      "source": {
+        "source": "local",
+        "path": "./plugins/ski-analyzer-toolkit"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools",
+      "interface": {
+        "displayName": "Ski Analyzer Toolkit"
+      }
+    }
+  ]
+}
