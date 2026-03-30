@@ -421,6 +421,7 @@ class TestAnalysisPipeline:
         monkeypatch.setattr(
             "app.services.analysis_pipeline.VideoProcessor.extract_frames", lambda *_: frame_paths
         )
+        monkeypatch.setattr("app.core.settings.use_mock", False)
         monkeypatch.setattr(
             "app.services.analysis_pipeline.PoseEstimator.get_instance", lambda: _FakeEstimator()
         )

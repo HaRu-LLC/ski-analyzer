@@ -1,11 +1,11 @@
 """API リクエスト/レスポンススキーマ."""
 
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class AnalysisStatus(str, Enum):
+class AnalysisStatus(StrEnum):
     """解析ステータス."""
 
     UPLOADING = "uploading"
