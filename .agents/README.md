@@ -32,6 +32,9 @@
 - `ski-agent-evals`
   - unsupported claim、low-confidence overstatement、fallback、trace grading、fixture 回帰の設計用
   - 出力品質より先に schema compliance と fallback correctness を確認する
+- `ski-review-fix-loop`
+  - code review の findings を起点に、その場で修正して再レビューまで回す反復作業用
+  - findings-first の出力を保ちつつ、デフォルト5回の上限付きで最小修正と最小検証のループを閉じる
 
 ## 良い使い方
 
@@ -52,6 +55,7 @@
   - backend 変更が主なら `ski-backend-change`
   - 設計レビューが主なら `ski-agent-design`
   - 評価戦略や failure mode 整理が主なら `ski-agent-evals`
+  - review して直して再レビューまで一気に回すなら `ski-review-fix-loop`
 - API shape を変える場合は skill 任せにせず、`backend/app/schemas/`、`frontend/src/types/analysis.ts`、`frontend/src/utils/api.ts`、`docs/api-spec.md` を必ずセットで確認する
 - skill は durable workflow の再利用に使い、単発の細かい事情はその都度 chat で渡す
 
